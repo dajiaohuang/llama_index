@@ -341,6 +341,23 @@ class FunctionTool(AsyncBaseTool):
 
         raw_output = self._fn(*args, **all_kwargs)
 
+        # If the function already returned a ToolOutput, return it as-is
+        # (after running callback if provided)
+        if isinstance(raw_output, ToolOutput):
+            callback_result = self._run_sync_callback(raw_output)
+            if callback_result is not None:
+                if isinstance(callback_result, ToolOutput):
+                    return callback_result
+                else:
+                    # Assume callback_result is a string to override the content.
+                    return ToolOutput(
+                        content=str(callback_result),
+                        tool_name=self.metadata.get_name(),
+                        raw_input={"args": args, "kwargs": all_kwargs},
+                        raw_output=raw_output,
+                    )
+            return raw_output
+
         # Exclude the Context param from the tool output so that the Context can be serialized
         tool_output_kwargs = {
             k: v for k, v in all_kwargs.items() if k != self.ctx_param_name
@@ -379,6 +396,23 @@ class FunctionTool(AsyncBaseTool):
                 raise ValueError("Context is required for this tool")
 
         raw_output = await self._async_fn(*args, **all_kwargs)
+
+        # If the function already returned a ToolOutput, return it as-is
+        # (after running callback if provided)
+        if isinstance(raw_output, ToolOutput):
+            callback_result = await self._run_async_callback(raw_output)
+            if callback_result is not None:
+                if isinstance(callback_result, ToolOutput):
+                    return callback_result
+                else:
+                    # Assume callback_result is a string to override the content.
+                    return ToolOutput(
+                        content=str(callback_result),
+                        tool_name=self.metadata.get_name(),
+                        raw_input={"args": args, "kwargs": all_kwargs},
+                        raw_output=raw_output,
+                    )
+            return raw_output
 
         # Exclude the Context param from the tool output so that the Context can be serialized
         tool_output_kwargs = {
